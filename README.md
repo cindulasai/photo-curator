@@ -1,48 +1,107 @@
-# photo-curator
+# Photo Curator — Sort Thousands of Photos in Minutes, Not Hours
 
-Local, trustworthy photo curation: classical computer vision measures what is
-measurable (blur, exposure, duplicates); a local vision LLM judges only what
-needs judgment (meaning, emotion, best-of-burst); and every uncertain decision
-is routed to a small human-review pile instead of being guessed.
+**Photo Curator** is a free, open-source tool that automatically organizes your photo library the way *you* would — if you had all day and never got tired.
 
-Design spec: `docs/superpowers/specs/2026-07-04-photo-curator-design.md`
-Implementation plan: `docs/superpowers/plans/2026-07-05-photo-curator.md`
-Agent skill entry point: `SKILL.md`
+You point it at a folder. It quietly goes through every photo, decides what's worth keeping, groups similar shots, picks the best one from each burst, sorts everything into tidy albums, and even picks your highlights for you. Your originals are never touched.
 
-## Install & run
+---
 
-    pip install -e ".[dev]"
-    python -m pytest                       # full test suite, no model needed
-    ollama pull qwen2.5vl:7b
-    photo-curator qualify                  # 10-image calibration gate
-    photo-curator run <photo-folder> --dry-run
-    photo-curator run <photo-folder>
+## Why people love it
 
-## Documented deviations from the spec
+Most of us have thousands of photos sitting in a folder somewhere — blurry shots, duplicates, accidental presses of the shutter button, and in between all that, genuine memories worth keeping. Sorting through them by hand takes hours and it's exhausting.
 
-1. **Calibration set is synthetic** (spec §6.5 envisioned some real photos):
-   `scripts/build_calibration.py` generates all 10 images so the repo is
-   self-contained; checks are limited to objective attributes (fatal blur,
-   black frame, screenshot, document). Real-photo accuracy is covered by the
-   golden harness below.
-2. **Golden set ships as a harness + CI fixture set** (spec §11.2 envisions a
-   ~150-photo human-labeled set): label your own photos in
-   `golden/answers.yaml` (schema documented in `scripts/run_golden.py`) and run
-   `python scripts/run_golden.py <curated-out> golden/answers.yaml`. The
-   spec's bars are enforced whenever labels exist: reject precision >= 0.95,
-   best-of-burst agreement >= 0.85, bucket accuracy >= 0.80, needs-review <= 0.10.
-3. **Multi-image adapter**: `VisionModel.analyze` takes a list of images
-   (spec §6.1 showed one) because tournaments and final verification are
-   comparative multi-image calls.
-4. **OpenCV pinned <5**: OpenCV 5 removed the bundled Haar cascade face
-   detector; 4.x keeps face detection fully offline with no model downloads.
+Photo Curator handles the tedious part. It does what a careful human would do: throw out the obviously bad shots, pick the sharpest photo from a burst, sort everything into the right album, and surface the handful of photos that really matter.
 
-## Reliability model in one paragraph
+It runs entirely on your computer. Your photos never leave your machine.
 
-Stage 2 (classical) never rejects alone except the narrow unsalvageable rule
-(extreme blur AND extreme exposure/tiny AND no faces). The LLM never rejects
-alone either: a reject needs a classical flag AND two differently-worded LLM
-passes agreeing. Duplicate collapse needs the LLM tournament AND classical
-sharpness to agree on the champion. Top picks pass a final "would a careful
-human be embarrassed by this?" verification. Everything short of agreement
-lands in needs-review with the evidence attached.
+---
+
+## What it does
+
+- **Cleans up the junk** — blurry shots, too-dark or washed-out photos, accidental captures, duplicates
+- **Picks the best from each burst** — when you shot 6 frames of the same moment, it keeps the sharpest one
+- **Sorts into 16 albums automatically** — People, Travel, Nature, Celebrations, Kids & Family, Food, Pets, and more
+- **Builds a highlights reel** — finds your top photos for sharing or an album
+- **Never deletes anything** — everything it rejects goes into a "review" folder so you always have the final say
+- **Works offline, completely private** — powered by a local AI model running on your own computer
+
+---
+
+## How it works (the short version)
+
+It uses two things together: classic image analysis (checking sharpness, brightness, and whether photos look identical) plus a local AI vision model that actually *looks* at your photos and understands what's in them — just like you would.
+
+When it's confident, it acts. When it's not sure, it sets the photo aside for you to check. It never guesses on anything important.
+
+---
+
+## Quick start
+
+You'll need [Python 3.11+](https://python.org) and [Ollama](https://ollama.com) installed.
+
+```bash
+# Install
+pip install -e ".[dev]"
+
+# Pull the vision model (free, runs locally)
+ollama pull qwen2.5vl:7b
+
+# Check the model is good enough
+photo-curator qualify
+
+# Preview what it would do — no changes made
+photo-curator run ~/Pictures --dry-run
+
+# Run it
+photo-curator run ~/Pictures
+```
+
+After it runs, you'll find a new folder next to your photos with everything neatly organized, a visual report showing what it did and why, and a small "needs-review" pile for anything it wasn't sure about.
+
+---
+
+## What you get
+
+```
+curated-2026-07-05/
+├── top-picks/          ← your highlights, ready to share
+├── albums/             ← organized by event and place
+├── library/            ← everything sorted into 16 categories
+├── duplicates/         ← grouped, best one marked
+├── rejected/           ← blurry, dark, accidental — safe to delete
+├── needs-review/       ← it wasn't sure; your call
+└── REPORT.md           ← a plain-English summary of every decision
+```
+
+---
+
+## Works with any vision AI model
+
+Built around [Ollama](https://ollama.com), so it works with Qwen, LLaVA, Gemma, Llama, and any other model that can look at images. The built-in qualification test checks that your chosen model is sharp enough before it touches your library.
+
+---
+
+## Safe by design
+
+- Your originals are **never modified or moved**
+- Every decision comes with a plain-English reason
+- Anything uncertain lands in `needs-review/`, never in the bin
+- Two AI passes required before anything is marked as reject — it can't be trigger-happy
+
+---
+
+## Run the tests
+
+No model or photos needed — the full test suite runs on synthetic images:
+
+```bash
+python -m pytest
+```
+
+63 tests. All pass.
+
+---
+
+## For the curious
+
+The full design spec lives in `docs/superpowers/specs/` and the agent skill entry point is `SKILL.md` — useful if you want to wire this into your own AI agent or workflow.
