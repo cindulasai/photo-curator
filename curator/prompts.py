@@ -26,6 +26,11 @@ def render(name: str, cfg: dict, **subs) -> str:
     if "<<" in text:
         missing = re.findall(r"<<([A-Z_]+)>>", text)
         raise ValueError(f"unfilled placeholders in {name}: {missing}")
+    suffix = cfg.get("prompt_suffix") or []
+    if suffix and name in ("analyze_photo", "analyze_photo_reworded",
+                           "tournament", "final_verification"):
+        text += ("\n\nThe photo owner asked you to honor these preferences:\n"
+                 + "\n".join(f"- {s}" for s in suffix))
     return text
 
 
