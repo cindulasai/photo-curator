@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "keep_worthy": {"type": "string", "enum": ["yes", "no", "unsure"]},
+    "real_camera_photo": {"type": "string", "enum": ["yes", "no", "unsure"]},
+    "intentional_shot": {"type": "string", "enum": ["yes", "no", "unsure"]},
+    "note": {"type": "string"}
+  },
+  "required": ["keep_worthy", "real_camera_photo", "intentional_shot"],
+  "additionalProperties": false
+}

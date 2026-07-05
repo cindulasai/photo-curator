@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "best_index": {"type": "integer", "minimum": 0, "maximum": 3},
+    "reason": {"type": "string"},
+    "unsure": {"type": "boolean"}
+  },
+  "required": ["best_index", "reason", "unsure"],
+  "additionalProperties": false
+}

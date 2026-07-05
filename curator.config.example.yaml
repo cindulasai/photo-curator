@@ -1,0 +1,10 @@
+model: qwen2.5vl:7b
+ollama_url: http://localhost:11434
+buckets:
+  disable: []
+  custom: []
+    # - key: my-artwork
+    #   description: "Paintings and drawings made by me"
+top_picks:
+  target: auto        # or an integer
+  max_per_event: 15

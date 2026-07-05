@@ -1,0 +1,58 @@
+{
+  "type": "object",
+  "properties": {
+    "bucket": {
+      "type": "object",
+      "properties": {
+        "primary": {"type": "string"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "alternates": {"type": "array", "items": {"type": "string"}, "maxItems": 3}
+      },
+      "required": ["primary", "confidence"], "additionalProperties": false
+    },
+    "tags": {"type": "array", "items": {"type": "string"}},
+    "description": {"type": "string"},
+    "people": {
+      "type": "object",
+      "properties": {
+        "count": {"type": "integer", "minimum": 0},
+        "eyes_closed": {"type": "string", "enum": ["yes", "no", "unsure", "n/a"]},
+        "expression_quality": {"type": "string", "enum": ["great", "ok", "poor", "unsure", "n/a"]}
+      },
+      "required": ["count", "eyes_closed", "expression_quality"], "additionalProperties": false
+    },
+    "utility": {
+      "type": "object",
+      "properties": {
+        "is_screenshot": {"type": "string", "enum": ["yes", "no", "unsure"]},
+        "is_document": {"type": "string", "enum": ["yes", "no", "unsure"]},
+        "is_accidental": {"type": "string", "enum": ["yes", "no", "unsure"]}
+      },
+      "required": ["is_screenshot", "is_document", "is_accidental"], "additionalProperties": false
+    },
+    "quality_judgment": {
+      "type": "object",
+      "properties": {
+        "fatal": {"type": "string", "enum": ["yes", "no", "unsure"]},
+        "note": {"type": "string"}
+      },
+      "required": ["fatal", "note"], "additionalProperties": false
+    },
+    "rubric": {
+      "type": "object",
+      "properties": {
+        "emotional": {"type": "integer", "minimum": 0, "maximum": 4},
+        "people_engagement": {"type": "integer", "minimum": 0, "maximum": 4},
+        "composition_light": {"type": "integer", "minimum": 0, "maximum": 4},
+        "scene_appeal": {"type": "integer", "minimum": 0, "maximum": 4},
+        "novelty": {"type": "integer", "minimum": 0, "maximum": 4},
+        "justifications": {"type": "object", "additionalProperties": {"type": "string"}}
+      },
+      "required": ["emotional", "people_engagement", "composition_light", "scene_appeal", "novelty"],
+      "additionalProperties": false
+    },
+    "unsure_notes": {"type": "string"}
+  },
+  "required": ["bucket", "tags", "description", "people", "utility", "quality_judgment", "rubric"],
+  "additionalProperties": false
+}

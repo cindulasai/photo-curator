@@ -1,0 +1,52 @@
+[
+  {
+    "file": "blur_a.png",
+    "check": "quality_judgment.fatal",
+    "expect": "yes"
+  },
+  {
+    "file": "blur_b.png",
+    "check": "quality_judgment.fatal",
+    "expect": "yes"
+  },
+  {
+    "file": "black.png",
+    "check": "quality_judgment.fatal",
+    "expect": "yes"
+  },
+  {
+    "file": "shot_a.png",
+    "check": "utility.is_screenshot",
+    "expect": "yes"
+  },
+  {
+    "file": "shot_b.png",
+    "check": "utility.is_screenshot",
+    "expect": "yes"
+  },
+  {
+    "file": "receipt.png",
+    "check": "utility.is_document",
+    "expect": "yes"
+  },
+  {
+    "file": "scene_a.png",
+    "check": "quality_judgment.fatal",
+    "expect": "no"
+  },
+  {
+    "file": "scene_b.png",
+    "check": "quality_judgment.fatal",
+    "expect": "no"
+  },
+  {
+    "file": "scene_c.png",
+    "check": "utility.is_screenshot",
+    "expect": "no"
+  },
+  {
+    "file": "scene_d.png",
+    "check": "utility.is_document",
+    "expect": "no"
+  }
+]

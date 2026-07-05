@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "properties": {
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "index": {"type": "integer", "minimum": 0},
+          "reason": {"type": "string"}
+        },
+        "required": ["index", "reason"], "additionalProperties": false
+      }
+    }
+  },
+  "required": ["flags"], "additionalProperties": false
+}
