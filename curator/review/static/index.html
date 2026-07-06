@@ -1,3 +1,47 @@
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Photo Curator</title></head>
-<body><p>Loading…</p></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Photo Curator — Review</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav id="sidebar"></nav>
+  <main id="main">
+    <div id="grid"></div>
+  </main>
+  <aside id="chat-panel">
+    <div id="chat-log"></div>
+    <div id="chat-input-row">
+      <input id="chat-input" type="text" placeholder="Ask about this run…">
+      <button id="chat-send">Send</button>
+    </div>
+  </aside>
+
+  <div id="lightbox" hidden>
+    <button id="lb-close" onclick="closeLightbox()">✕</button>
+    <div id="lb-img-wrap"><img src="" alt=""></div>
+    <div id="lb-info"></div>
+  </div>
+
+  <div id="triage" hidden>
+    <div id="triage-img"><img src="" alt=""></div>
+    <div id="triage-actions"></div>
+  </div>
+
+  <div id="help-bar">
+    <span><kbd>↑↓←→</kbd> navigate</span>
+    <span><kbd>Enter</kbd> lightbox</span>
+    <span><kbd>G</kbd> top-pick</span>
+    <span><kbd>X</kbd> reject</span>
+    <span><kbd>U</kbd> undo</span>
+    <span><kbd>Space</kbd> multi-select</span>
+    <span><kbd>C</kbd> chat</span>
+    <span><kbd>?</kbd> help</span>
+  </div>
+  <div id="toast"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
