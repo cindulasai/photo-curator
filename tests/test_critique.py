@@ -49,8 +49,12 @@ def test_close_call_triggers_critique(tmp_path, img_factory):
 
     calls = []
     def handler(paths, prompt, schema):
-        calls.append(len(paths))
-        return {"winner": 0, "reason": "slightly better", "classical_agree": True}
+        calls.append(schema)
+        # Tournament call: schema requires best_index
+        if "best_index" in str(schema):
+            return {"best_index": 0, "unsure": False, "reason": "first is better"}
+        # Critique call: schema requires winner
+        return {"winner": 1, "reason": "runner-up is better"}
 
     from curator.tournament import run_tournaments
     from curator.budget import LLMBudgetCounter
@@ -80,7 +84,7 @@ def test_budget_exhausted_no_critique(tmp_path, img_factory):
     calls = []
     def handler(paths, prompt, schema):
         calls.append(len(paths))
-        return {"winner": 0, "reason": "better", "classical_agree": True}
+        return {"best_index": 0, "unsure": False, "reason": "better"}
     from curator.tournament import run_tournaments
     from curator.budget import LLMBudgetCounter
     budget = LLMBudgetCounter(base_count=0)  # zero budget → no critique
