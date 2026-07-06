@@ -11,6 +11,17 @@ def _sleep(s: float) -> None:      # patchable in tests
     time.sleep(s)
 
 
+def provider_of(model: str) -> str:
+    head = model.split("/", 1)[0]
+    if head in _KNOWN_PREFIXES:
+        return head
+    if model.startswith(("gpt-", "o1", "o3", "o4")):
+        return "openai"
+    if "claude" in model:
+        return "anthropic"
+    return "openai"
+
+
 class LiteLLMModel:
     """VisionModel over LiteLLM: one adapter for every provider (spec §5.1).
     Keeps the OllamaModel reliability loop: transport retries + backoff,
@@ -27,14 +38,7 @@ class LiteLLMModel:
         return f"litellm/{self.model}"
 
     def provider(self) -> str:
-        head = self.model.split("/", 1)[0]
-        if head in _KNOWN_PREFIXES:
-            return head
-        if self.model.startswith(("gpt-", "o1", "o3", "o4")):
-            return "openai"
-        if "claude" in self.model:
-            return "anthropic"
-        return "openai"
+        return provider_of(self.model)
 
     def _messages(self, prompt: str, images: list[str]) -> list[dict]:
         if not images:
