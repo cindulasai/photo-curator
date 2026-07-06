@@ -27,6 +27,9 @@ are trusts us with their memories. Every rule below exists to honor that trust:
 
 ## Quick start
 
+Interactive app: run `photo-curator` with no arguments - pick a model
+(local Ollama or any API vision model), pick a folder, chat your wishes.
+
     pip install -e .                    # once
     ollama pull qwen2.5vl:7b            # once (or gemma3:12b / llama3.2-vision:11b)
     photo-curator qualify               # verify the model is good enough
