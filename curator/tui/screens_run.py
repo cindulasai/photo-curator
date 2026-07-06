@@ -10,6 +10,13 @@ from ..config import load_config
 from ..db import Store
 from .runner import PipelineRunner, factory_for
 
+try:
+    from ..review.server import ReviewServer, find_free_port, make_token
+except ImportError:  # pragma: no cover
+    ReviewServer = None  # type: ignore[assignment,misc]
+    find_free_port = None  # type: ignore[assignment]
+    make_token = None  # type: ignore[assignment]
+
 
 class RunScreen(Screen):
     BINDINGS = [("c", "cancel", "Cancel (resumable)")]
@@ -77,7 +84,8 @@ class RunScreen(Screen):
 
 
 class ResultsScreen(Screen):
-    BINDINGS = [("o", "open_folder", "Open output")]
+    BINDINGS = [("o", "open_folder", "Open output"),
+                ("r", "review", "Review in browser")]
 
     def __init__(self, runner: PipelineRunner):
         super().__init__()
@@ -126,3 +134,42 @@ class ResultsScreen(Screen):
     def action_open_folder(self) -> None:
         import webbrowser
         webbrowser.open(self.runner.out.as_uri())
+
+    def action_review(self) -> None:
+        if ReviewServer is None:
+            self.notify("Install photo-curator[app] for review gallery")
+            return
+        port = find_free_port()
+        token = make_token()
+        srv = ReviewServer(self.runner.out, port, token)
+        srv.start(open_browser=True)
+        self.notify(f"Review gallery: {srv.url}")
+        self.run_worker(lambda: self._memory_session(srv), thread=True)
+
+    def _memory_session(self, srv) -> None:
+        try:
+            srv._thread.join(timeout=3600)
+        except Exception:
+            pass
+        finally:
+            srv.stop()
+        try:
+            from ..review.corrections import load_corrections
+            from ..chat.memory import propose_memories
+            corrections = load_corrections()
+            if not corrections or not self.app.model_factory:
+                return
+            cfg = self.app.state.cfg if self.app.state else {}
+            factory = self.app.model_factory
+            model = factory(cfg)
+            proposals = propose_memories(corrections, model, cfg)
+            if proposals:
+                self.app.call_from_thread(self._show_proposals, proposals)
+        except Exception:
+            pass
+
+    def _show_proposals(self, proposals: list) -> None:
+        from ..chat.memory import confirm_proposal
+        for p in proposals:
+            self.notify(f"Memory: {p['statement'][:80]}… (auto-confirmed)", timeout=8)
+            confirm_proposal(p)
