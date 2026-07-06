@@ -1,0 +1,47 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: macos-14,        target: macos-arm64}
+          - {os: macos-13,        target: macos-x86_64}
+          - {os: ubuntu-22.04,     target: linux-x86_64}
+          - {os: ubuntu-22.04-arm, target: linux-arm64}
+          - {os: windows-2022,     target: windows-x86_64}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install ".[app]" pyinstaller
+      - run: pyinstaller packaging/photo-curator.spec
+      - name: smoke test
+        shell: bash
+        run: ./dist/photo-curator* --version
+      - name: ad-hoc sign (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: codesign --force -s - dist/photo-curator
+      - name: rename
+        shell: bash
+        run: |
+          ext=""
+          [[ "${{ matrix.target }}" == windows-* ]] && ext=".exe"
+          mv dist/photo-curator$ext dist/photo-curator-${{ matrix.target }}$ext
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/photo-curator-*
+  test:
+    strategy:
+      matrix: {os: [macos-14, ubuntu-22.04, windows-2022]}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest -q
