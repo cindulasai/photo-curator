@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "proposals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "statement": {"type": "string"},
+          "evidence_refs": {"type": "array", "items": {"type": "string"}},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+          "config_hint": {"type": ["string", "null"]},
+          "key": {"type": "string", "pattern": "^[a-z0-9_]+$"}
+        },
+        "required": ["statement", "evidence_refs", "confidence", "config_hint", "key"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["proposals"],
+  "additionalProperties": false
+}
