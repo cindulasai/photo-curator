@@ -1,5 +1,5 @@
 from __future__ import annotations
-import copy, json, re
+import copy, json
 from pathlib import Path
 from .. import prompts
 from ..review.corrections import append_correction, was_declined
@@ -16,7 +16,10 @@ def load_memory(path: Path | None = None) -> list[str]:
     for line in p.read_text().splitlines():
         line = line.strip()
         if line.startswith("- "):
-            lines.append(line[2:])
+            # Strip internal [key] markers before returning to callers
+            entry = line[2:].rsplit("  [", 1)[0].strip()
+            if entry:
+                lines.append(entry)
     return lines
 
 
@@ -58,7 +61,7 @@ def decline_proposal(proposal: dict) -> None:
 def inject_memory(cfg: dict, path: Path | None = None) -> dict:
     lines = load_memory(path or MEMORY_FILE)
     if not lines:
-        return cfg
+        return copy.deepcopy(cfg)
     new_cfg = copy.deepcopy(cfg)
     existing = list(new_cfg.get("prompt_suffix") or [])
     for line in lines:
