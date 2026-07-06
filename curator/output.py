@@ -18,6 +18,21 @@ def link_or_copy(src: Path, dst: Path):
         shutil.copy2(src, dst)
 
 
+def _make_thumb(src: Path, sha: str, thumb_root: Path) -> None:
+    from PIL import Image, ImageOps
+    dst = thumb_root / sha[:2] / f"{sha}.jpg"
+    if dst.exists():
+        return
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with Image.open(src) as img:
+            img = ImageOps.exif_transpose(img).convert("RGB")
+            img.thumbnail((256, 256))
+            img.save(dst, "JPEG", quality=85)
+    except Exception:
+        pass  # corrupt or unsupported — skip silently
+
+
 def _dest_name(rel_path: str, sha256: str, taken: set[str]) -> str:
     name = Path(rel_path).name
     if name in taken:
@@ -36,6 +51,8 @@ def required_bytes(store: Store) -> int:
 
 def materialize(source: Path, store: Store, cfg: dict, out_dir: Path) -> dict:
     source, out = Path(source), Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    thumb_root = out / "report-assets" / "thumbs"
     counts: dict[str, int] = {}
     taken: dict[str, set] = {}
     placed: dict[str, str] = {}          # rel_path -> primary output path
@@ -46,6 +63,8 @@ def materialize(source: Path, store: Store, cfg: dict, out_dir: Path) -> dict:
         link_or_copy(source / rel, dst)
         counts[folder.split("/")[0]] = counts.get(folder.split("/")[0], 0) + 1
         placed.setdefault(rel, str(dst.relative_to(out)))
+        if sha:
+            _make_thumb(source / rel, sha, thumb_root)
         return dst
 
     group_of = {}
