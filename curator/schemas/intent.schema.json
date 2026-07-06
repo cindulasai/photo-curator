@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "deltas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {"type": "string"},
+          "op": {"type": "string", "enum": ["set", "append"]},
+          "value": {},
+          "why": {"type": "string"}
+        },
+        "required": ["path", "value", "why"],
+        "additionalProperties": false
+      }
+    },
+    "reply": {"type": "string"}
+  },
+  "required": ["deltas", "reply"],
+  "additionalProperties": false
+}
