@@ -65,6 +65,8 @@ def materialize(source: Path, store: Store, cfg: dict, out_dir: Path) -> dict:
         placed.setdefault(rel, str(dst.relative_to(out)))
         if sha:
             _make_thumb(source / rel, sha, thumb_root)
+            thumb_path = thumb_root / sha[:2] / f"{sha}.jpg"
+            counts.setdefault("_thumbs", {})[rel] = str(thumb_path.relative_to(out))
         return dst
 
     group_of = {}

@@ -40,3 +40,20 @@ def test_thumb_path_by_sha256(tmp_path, img_factory):
             sha = p["sha256"]
             expected = out / "report-assets" / "thumbs" / sha[:2] / f"{sha}.jpg"
             assert expected.exists(), f"thumb missing for {p['rel_path']}"
+
+def test_materialize_returns_thumbs_dict(tmp_path, img_factory):
+    src = tmp_path / "src"
+    img_factory(src / "c.jpg", "scene", exif_dt="2026:05:12 10:02:00", seed=3)
+    from curator.db import Store
+    from curator.config import load_config
+    from curator.inventory import run_stage1
+    store = Store(tmp_path / "d.db")
+    cfg = load_config(None)
+    run_stage1(src, store, cfg)
+    store.update("c.jpg", verdict="keep", verdict_info={"bucket": "people"}, status="ok")
+    out = tmp_path / "out2"
+    result = materialize(src, store, cfg, out)
+    thumbs = result.get("_thumbs", {})
+    assert "c.jpg" in thumbs
+    assert thumbs["c.jpg"].startswith("report-assets/thumbs/")
+    assert (out / thumbs["c.jpg"]).exists()
