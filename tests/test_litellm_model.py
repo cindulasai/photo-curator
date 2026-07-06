@@ -34,13 +34,15 @@ def test_happy_path_vision_message(tmp_path, monkeypatch):
     def completion(**kw):
         sent.update(kw)
         return FakeUsageResp('{"ok": "yes"}')
-    _install_fake_litellm(monkeypatch, completion)
+    fake_litellm = _install_fake_litellm(monkeypatch, completion)
     m = _model()
     assert m.analyze([img], "prompt", SCHEMA) == {"ok": "yes"}
     content = sent["messages"][0]["content"]
     assert content[0] == {"type": "text", "text": "prompt"}
     assert content[1]["image_url"]["url"].startswith("data:image/jpeg;base64,")
-    assert sent["temperature"] == 0 and sent["api_key"] == "sk-test"
+    assert sent["temperature"] == 0
+    assert "api_key" not in sent
+    assert fake_litellm.openai_key == "sk-test"
     assert sent["response_format"]["json_schema"]["schema"] == SCHEMA
     assert m.cost_usd == pytest.approx(0.001)
 

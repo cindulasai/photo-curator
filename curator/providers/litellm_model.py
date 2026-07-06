@@ -46,13 +46,17 @@ class LiteLLMModel:
 
     def _call(self, prompt: str, images: list[str], schema: dict) -> str:
         import litellm
-        api_key = None if self.provider() == "ollama" else self.keystore.get(self.provider())
+        provider = self.provider()
+        if provider != "ollama":
+            key = self.keystore.get(provider)
+            if key:
+                setattr(litellm, f"{provider}_key", key)
         last = None
         for attempt in range(5):
             kwargs = dict(model=self.model,
                           messages=self._messages(self._maybe_embed(prompt, schema), images),
                           temperature=0, seed=self.seed,
-                          timeout=self.timeout_s, api_key=api_key)
+                          timeout=self.timeout_s)
             if self._schema_native:
                 kwargs["response_format"] = {"type": "json_schema", "json_schema": {
                     "name": "curator_output", "schema": schema, "strict": True}}
