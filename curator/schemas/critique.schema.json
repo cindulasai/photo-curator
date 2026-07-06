@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "winner": {"type": "integer", "minimum": 0},
+    "reason": {"type": "string"},
+    "classical_agree": {"type": "boolean"}
+  },
+  "required": ["winner", "reason"]
+}

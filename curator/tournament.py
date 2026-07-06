@@ -11,9 +11,18 @@ def _batches(items: list, size: int = 4):
         yield items[i:i + size]
 
 
-def run_tournaments(source: Path, store: Store, cfg: dict, model) -> dict:
+def _is_close_call(w: float, r: float, threshold: float = 0.10) -> bool:
+    """True if sharpness scores are within *threshold* of each other."""
+    if w <= 0:
+        return False
+    return abs(w - r) / max(w, 0.001) < threshold
+
+
+def run_tournaments(source: Path, store: Store, cfg: dict, model,
+                    budget=None) -> dict:
     summary = {"decided": 0, "review": 0}
     schema = prompts.load_schema("tournament")
+    critique_schema = prompts.load_schema("critique")
     photos = {p["rel_path"]: p for p in store.photos()}
     for g in store.groups():
         if g["champion"] or (g["info"] or {}).get("unsure") or (g["info"] or {}).get("error"):
@@ -26,6 +35,27 @@ def run_tournaments(source: Path, store: Store, cfg: dict, model) -> dict:
                             info={"reason": "only survivor", "classical_agree": True})
             summary["decided"] += 1
             continue
+
+        # Close-call critique: if the top-2 candidates are within 10% sharpness,
+        # fire one extra LLM round (budget permitting) before the main tournament.
+        critique_override: str | None = None
+        if len(ok) >= 2 and budget is not None:
+            sorted_by_sharp = sorted(
+                ok, key=lambda m: sharpness(photos[m]["stage2"]), reverse=True)
+            runner_up = sorted_by_sharp[1]
+            w_sharp = sharpness(photos[sorted_by_sharp[0]]["stage2"])
+            r_sharp = sharpness(photos[runner_up]["stage2"])
+            if _is_close_call(w_sharp, r_sharp) and budget.charge():
+                imgs = [Path(photos[sorted_by_sharp[0]]["stage2"]["work_path"]),
+                        Path(photos[runner_up]["stage2"]["work_path"])]
+                crit_prompt = prompts.render("tournament", cfg, COUNT=2, MAXIDX=1)
+                try:
+                    out = model.analyze(imgs, crit_prompt, critique_schema)
+                    idx = int(out.get("winner", 0))
+                    critique_override = runner_up if idx == 1 else sorted_by_sharp[0]
+                except Exception:
+                    pass  # critique failed — proceed with regular tournament
+
         contenders, reasons, failed = sorted(ok), [], False
         while len(contenders) > 1 and not failed:
             winners = []
@@ -55,6 +85,9 @@ def run_tournaments(source: Path, store: Store, cfg: dict, model) -> dict:
         if failed:
             continue
         champ = contenders[0]
+        # If a close-call critique preferred the other photo, honour it.
+        if critique_override and critique_override != champ and critique_override in ok:
+            champ = critique_override
         best_classical = max(sharpness(photos[m]["stage2"]) for m in ok)
         agree = sharpness(photos[champ]["stage2"]) >= \
             cfg["tournament"]["classical_agree_ratio"] * best_classical
