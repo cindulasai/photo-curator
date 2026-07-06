@@ -67,3 +67,18 @@ def test_all_dedupes(monkeypatch):
                         lambda timeout=3.0: [ModelEntry("x", "openrouter", "openrouter", False)])
     out = all_vision_models(load_config(None))
     assert [e.id for e in out] == ["ollama/a", "x"]
+
+def test_all_sorted_globally(monkeypatch):
+    # ollama returns "zzz/model", litellm returns "aaa/model" — final list must be sorted
+    monkeypatch.setattr("curator.providers.catalog.ollama_vision_models",
+                        lambda url, timeout=2.0: [ModelEntry("zzz/model", "ollama", "ollama", True)])
+    monkeypatch.setattr("curator.providers.catalog.litellm_vision_models",
+                        lambda: [ModelEntry("aaa/model", "openai", "litellm", False)])
+    monkeypatch.setattr("curator.providers.catalog.openrouter_vision_models",
+                        lambda timeout=3.0: [])
+    out = all_vision_models(load_config(None))
+    assert [e.id for e in out] == ["aaa/model", "zzz/model"]
+
+def test_litellm_not_installed_returns_empty(monkeypatch):
+    monkeypatch.setitem(sys.modules, "litellm", None)
+    assert litellm_vision_models() == []

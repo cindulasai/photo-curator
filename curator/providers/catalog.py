@@ -11,7 +11,7 @@ class ModelEntry:
     local: bool
     input_cost: float | None = None    # USD per token
     output_cost: float | None = None
-    installed: bool = True
+    installed: bool = False
 
 
 def ollama_vision_models(url: str, timeout: float = 2.0) -> list[ModelEntry]:
@@ -40,19 +40,19 @@ def ollama_vision_models(url: str, timeout: float = 2.0) -> list[ModelEntry]:
 def litellm_vision_models() -> list[ModelEntry]:
     try:
         import litellm
-    except ImportError:
+        out = []
+        for mid, info in litellm.model_cost.items():
+            if not info.get("supports_vision"):
+                continue
+            if info.get("mode") not in (None, "chat"):
+                continue
+            out.append(ModelEntry(id=mid, provider=info.get("litellm_provider", "unknown"),
+                                  source="litellm", local=False,
+                                  input_cost=info.get("input_cost_per_token"),
+                                  output_cost=info.get("output_cost_per_token")))
+        return sorted(out, key=lambda e: e.id)
+    except Exception:
         return []
-    out = []
-    for mid, info in litellm.model_cost.items():
-        if not info.get("supports_vision"):
-            continue
-        if info.get("mode") not in (None, "chat"):
-            continue
-        out.append(ModelEntry(id=mid, provider=info.get("litellm_provider", "unknown"),
-                              source="litellm", local=False,
-                              input_cost=info.get("input_cost_per_token"),
-                              output_cost=info.get("output_cost_per_token")))
-    return sorted(out, key=lambda e: e.id)
 
 
 def openrouter_vision_models(timeout: float = 3.0) -> list[ModelEntry]:
@@ -89,4 +89,4 @@ def all_vision_models(cfg: dict, include_openrouter: bool = True) -> list[ModelE
         if e.id not in seen:
             seen.add(e.id)
             out.append(e)
-    return out
+    return sorted(out, key=lambda e: e.id)
