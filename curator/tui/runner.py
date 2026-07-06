@@ -46,6 +46,8 @@ class _SteerProxy:
 
     def __call__(self, cfg: dict, idx: int) -> dict | None:
         r = self._runner
+        if r._cancel.is_set():
+            raise KeyboardInterrupt
         if r.cost_cap is not None and r.cost_usd >= r.cost_cap:
             raise ModelError(f"cost cap ${r.cost_cap} reached at photo {idx} - "
                              "resume to continue")
@@ -63,6 +65,7 @@ class PipelineRunner:
         self.model = None
         self.cost_cap = cost_cap
         self._deltas = cfg_deltas
+        self._cancel = threading.Event()
         self._factory = model_factory or factory_for(model_entry, keystore)
         self._steer_proxy = _SteerProxy(self)
         self._args = argparse.Namespace(
@@ -73,6 +76,10 @@ class PipelineRunner:
     def start(self) -> None:
         t = threading.Thread(target=self._run, daemon=True)
         t.start()
+
+    def stop(self) -> None:
+        """Signal the pipeline worker to stop at the next steer checkpoint."""
+        self._cancel.set()
 
     def push(self, deltas: list[dict]) -> None:
         self.steering.push(deltas)
@@ -106,6 +113,8 @@ class PipelineRunner:
             code = run_pipeline(self._args, model_factory=self._wrapped_factory,
                                 steer=self._steer_proxy, notify=self._notify)
             self.state.exit_code = code
+        except KeyboardInterrupt:
+            pass                                     # cancelled via stop()
         except Exception as exc:                    # never kill the UI thread
             self.state.error = str(exc)
         finally:

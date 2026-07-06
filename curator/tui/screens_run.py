@@ -29,6 +29,7 @@ class RunScreen(Screen):
             keystore=st.keystore, cfg_deltas=st.deltas, cost_cap=st.cost_cap,
             model_factory=self.app.model_factory)
         self._shown = 0
+        self._pushed = False
         self.runner.start()
         self.set_interval(0.3, self._refresh)
 
@@ -41,7 +42,8 @@ class RunScreen(Screen):
         cost = f" · ${self.runner.cost_usd:.2f}" if self.runner.cost_usd else ""
         self.query_one("#status", Static).update(
             ("done" if s.done else "curating…") + cost)
-        if s.done:
+        if s.done and not self._pushed:
+            self._pushed = True
             self.app.push_screen(ResultsScreen(self.runner))
 
     def on_input_submitted(self, ev: Input.Submitted) -> None:
@@ -65,8 +67,8 @@ class RunScreen(Screen):
         self.app.call_from_thread(log.write_line, f"curator: {out['reply']}")
 
     def action_cancel(self) -> None:
-        self.app.exit(message=f"Cancelled - resume anytime: photo-curator run "
-                              f"{self.app.state.folder} --out {self.runner.out} --resume")
+        self.runner.stop()
+        self.app.pop_screen()
 
 
 class ResultsScreen(Screen):
