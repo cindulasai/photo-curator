@@ -2,6 +2,7 @@ from __future__ import annotations
 import argparse, shutil, sys, time
 from datetime import datetime, timezone
 from pathlib import Path
+from . import __version__
 from .config import config_hash, load_config
 from .db import Store
 from .inventory import run_stage1, source_tree_hash
@@ -160,7 +161,19 @@ def run_pipeline(args, model_factory=_default_factory, steer=None, notify=None) 
 
 
 def main(argv=None) -> int:
+    argv = list(sys.argv[1:]) if argv is None else list(argv)
+    if argv in ([], ["tui"]):
+        try:
+            from curator.tui.app import CuratorApp
+        except ModuleNotFoundError:
+            print("The interactive app needs extras. Install with:\n"
+                  "  pip install 'photo-curator[app]'", file=sys.stderr)
+            return 1
+        CuratorApp().run()
+        return 0
     ap = argparse.ArgumentParser(prog="photo-curator")
+    ap.add_argument("--version", action="version",
+                    version=f"photo-curator {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run", help="curate a folder of photos")
     r.add_argument("source")
