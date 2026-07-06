@@ -2,6 +2,10 @@
 const token = new URLSearchParams(location.search).get('token') || '';
 const H = {'X-Review-Token': token, 'Content-Type': 'application/json'};
 
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 let state = {buckets: [], currentBucket: null, photos: [], focused: 0, selected: new Set()};
 
 async function api(method, path, body) {
@@ -21,7 +25,7 @@ function renderSidebar() {
   el.innerHTML = '<h2>Buckets</h2>' + state.buckets.map(b =>
     `<div class="bucket-item${b.key === state.currentBucket ? ' active' : ''}"
           onclick="selectBucket('${b.key}')" data-key="${b.key}">
-       <span>${b.label}</span><span class="count">${b.count}</span>
+       <span>${esc(b.label)}</span><span class="count">${esc(b.count)}</span>
      </div>`).join('');
 }
 
@@ -41,8 +45,8 @@ function renderGrid() {
   grid.innerHTML = state.photos.map((p, i) =>
     `<div class="thumb-card${state.focused === i ? ' focused' : ''}${state.selected.has(i) ? ' selected' : ''}"
           data-i="${i}" onclick="cardClick(${i})">
-       <img loading="lazy" src="${p.thumb || ''}" alt="${p.rel_path}">
-       <div class="badge">${p.verdict}</div>
+       <img loading="lazy" src="${p.thumb || ''}" alt="${esc(p.rel_path)}">
+       <div class="badge">${esc(p.verdict)}</div>
      </div>`).join('');
 }
 
@@ -61,9 +65,9 @@ function openLightbox(i) {
   lb.querySelector('#lb-img-wrap img').src = p.placed ? `/${p.placed}` : p.thumb;
   const vi = p.verdict_info || {};
   lb.querySelector('#lb-info').innerHTML =
-    `<h3>${p.rel_path}</h3>
-     <div class="ev-line"><strong>Verdict:</strong> ${p.verdict}</div>
-     <div class="ev-line"><strong>Bucket:</strong> ${p.bucket}</div>
+    `<h3>${esc(p.rel_path)}</h3>
+     <div class="ev-line"><strong>Verdict:</strong> ${esc(p.verdict)}</div>
+     <div class="ev-line"><strong>Bucket:</strong> ${esc(p.bucket)}</div>
      <pre style="margin-top:8px;font-size:11px;color:#888;white-space:pre-wrap">${JSON.stringify(vi, null, 2)}</pre>`;
 }
 
@@ -84,7 +88,7 @@ function showTriage() {
   t.hidden = false;
   t.querySelector('img').src = p.thumb;
   t.querySelector('#triage-actions').innerHTML =
-    `${triageIdx + 1}/${state.photos.length}: ${p.rel_path}<br>
+    `${triageIdx + 1}/${state.photos.length}: ${esc(p.rel_path)}<br>
      <kbd>K</kbd> keep &nbsp; <kbd>X</kbd> reject &nbsp; <kbd>Esc</kbd> exit triage`;
 }
 async function triageAction(to) {
@@ -162,11 +166,19 @@ async function sendChat() {
   if (!msg) return;
   inp.value = '';
   const log = document.getElementById('chat-log');
-  log.innerHTML += `<div class="chat-msg user">you: ${msg}</div>`;
+  log.innerHTML += `<div class="chat-msg user">you: ${esc(msg)}</div>`;
   const r = await api('POST', '/api/chat', {message: msg});
-  log.innerHTML += `<div class="chat-msg bot">curator: ${r.reply || '…'}</div>`;
+  log.innerHTML += `<div class="chat-msg bot">curator: ${esc(r.reply || '…')}</div>`;
   log.scrollTop = log.scrollHeight;
 }
 
 // Init
 loadState();
+
+// Expose functions needed by inline onclick handlers (ES6 modules don't attach to window)
+window.selectBucket = selectBucket;
+window.cardClick = cardClick;
+window.closeLightbox = closeLightbox;
+window.triageAction = triageAction;
+window.sendChat = sendChat;
+window.toggleChat = toggleChat;
