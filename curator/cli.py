@@ -67,6 +67,11 @@ def run_pipeline(args, model_factory=_default_factory, steer=None, notify=None) 
     store.set_meta("config_hash", chash)
     store.set_meta("source_hash", shash)
 
+    if steer is not None and hasattr(steer, "attach_store"):
+        steer.attach_store(store)
+        if args.resume:
+            cfg = steer.load_applied(cfg)
+
     timings = {}
     t0 = time.time()
     s1 = run_stage1(source, store, cfg)

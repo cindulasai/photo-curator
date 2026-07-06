@@ -13,6 +13,9 @@ class SteeringQueue:
         self._store = store
         self.applied: list[dict] = []
 
+    def attach_store(self, store) -> None:
+        self._store = store
+
     def push(self, deltas: list[dict]) -> None:
         validate_deltas({"deltas": deltas})
         self._q.put(deltas)
