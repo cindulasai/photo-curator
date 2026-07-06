@@ -26,6 +26,7 @@ packages = ["curator"]
 "curator/data" = "curator/data"
 "curator/prompts" = "curator/prompts"
 "curator/schemas" = "curator/schemas"
+"curator/providers/registry.yaml" = "curator/providers/registry.yaml"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
