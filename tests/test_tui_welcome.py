@@ -20,6 +20,7 @@ def _app(tmp_path):
 async def test_welcome_shows_detection(tmp_path):
     app = _app(tmp_path)
     async with app.run_test() as pilot:
+        await pilot.pause(0.2)                        # wait for _scan worker
         text = str(app.screen.query_one("#status").render())
         assert "Ollama: running" in text
         assert "qwen2.5vl:7b" in text

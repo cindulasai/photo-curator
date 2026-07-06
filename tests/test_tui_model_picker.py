@@ -18,6 +18,7 @@ async def test_tiers_and_badges(tmp_path):
     app = _app(tmp_path, [LOCAL, CLOUD])
     async with app.run_test() as pilot:
         await pilot.press("enter")                       # welcome -> picker
+        await pilot.pause(0.2)                           # wait for _load_models worker
         screen = app.screen
         labels = [str(o.prompt) for o in screen.query_one("#models")._options]
         joined = "\n".join(labels)

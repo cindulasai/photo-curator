@@ -53,18 +53,23 @@ class RunScreen(Screen):
             self.run_worker(lambda: self._chat(text), thread=True)
 
     def _chat(self, text: str) -> None:
-        factory = self.app.model_factory or factory_for(
-            self.app.state.model_entry, self.app.state.keystore)
-        model = factory(self.app.state.cfg)
-        out = parse_intent(model, self.app.state.cfg, text,
-                           run_state=self.runner.snapshot())
-        log = self.query_one("#runlog", Log)
-        if out["deltas"] and not self.runner.state.done:
-            self.runner.push(out["deltas"])
-            for line in describe(out["deltas"]):
-                self.app.call_from_thread(
-                    log.write_line, f"↪ applied from next photo: {line}")
-        self.app.call_from_thread(log.write_line, f"curator: {out['reply']}")
+        try:
+            factory = self.app.model_factory or factory_for(
+                self.app.state.model_entry, self.app.state.keystore)
+            model = factory(self.app.state.cfg)
+            out = parse_intent(model, self.app.state.cfg, text,
+                               run_state=self.runner.snapshot())
+            log = self.query_one("#runlog", Log)
+            if out["deltas"] and not self.runner.state.done:
+                self.runner.push(out["deltas"])
+                for line in describe(out["deltas"]):
+                    self.app.call_from_thread(
+                        log.write_line, f"↪ applied from next photo: {line}")
+            self.app.call_from_thread(log.write_line, f"curator: {out['reply']}")
+        except Exception as e:
+            log = self.query_one("#runlog", Log)
+            self.app.call_from_thread(log.write_line,
+                                      f"curator: something went wrong — {e}")
 
     def action_cancel(self) -> None:
         self.runner.stop()
@@ -100,18 +105,23 @@ class ResultsScreen(Screen):
             self.run_worker(lambda: self._answer(q), thread=True)
 
     def _answer(self, q: str) -> None:
-        from ..chat.qa import answer
-        factory = self.app.model_factory or factory_for(
-            self.app.state.model_entry, self.app.state.keystore)
-        model = factory(self.app.state.cfg)
-        store = Store(self.runner.out / "curation.db")
         try:
-            reply = answer(model, store, self.app.state.cfg, q)
-        finally:
-            store.close()
-        log = self.query_one("#qalog", Log)
-        self.app.call_from_thread(log.write_line, f"you: {q}")
-        self.app.call_from_thread(log.write_line, f"curator: {reply}")
+            from ..chat.qa import answer
+            factory = self.app.model_factory or factory_for(
+                self.app.state.model_entry, self.app.state.keystore)
+            model = factory(self.app.state.cfg)
+            store = Store(self.runner.out / "curation.db")
+            try:
+                reply = answer(model, store, self.app.state.cfg, q)
+            finally:
+                store.close()
+            log = self.query_one("#qalog", Log)
+            self.app.call_from_thread(log.write_line, f"you: {q}")
+            self.app.call_from_thread(log.write_line, f"curator: {reply}")
+        except Exception as e:
+            log = self.query_one("#qalog", Log)
+            self.app.call_from_thread(log.write_line,
+                                      f"curator: something went wrong — {e}")
 
     def action_open_folder(self) -> None:
         import webbrowser

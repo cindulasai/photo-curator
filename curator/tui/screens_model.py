@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json
 import requests
+from textual import work
 from textual.containers import Vertical
 from textual.screen import ModalScreen, Screen
 from textual.widgets import Footer, Header, Input, OptionList, ProgressBar, Static
@@ -19,10 +20,20 @@ class ModelPickerScreen(Screen):
         yield Footer()
 
     def on_mount(self) -> None:
+        self._entries: dict[str, ModelEntry] = {}
+        ol = self.query_one("#models", OptionList)
+        ol.add_option(Option("Loading models…", disabled=True))
+        self._load_models()
+
+    @work(thread=True)
+    def _load_models(self) -> None:
         catalog = self.app.catalog_fn(self.app.state.cfg)
         rec, rest = tiered(catalog, load_registry())
+        self.app.call_from_thread(self._fill_models, rec, rest)
+
+    def _fill_models(self, rec: list, rest: list) -> None:
         ol = self.query_one("#models", OptionList)
-        self._entries: dict[str, ModelEntry] = {}
+        ol.clear_options()
         ol.add_option(Option("── RECOMMENDED ──", disabled=True))
         for e in rec:
             self._entries[e.id] = e
@@ -155,15 +166,21 @@ class PullModal(ModalScreen[bool]):
         url = self.app.state.cfg["ollama_url"].rstrip("/") + "/api/pull"
         bar = self.query_one("#pull", ProgressBar)
         try:
+            success_seen = False
             with requests.post(url, json={"model": name}, stream=True,
                                timeout=3600) as resp:
                 for line in resp.iter_lines():
                     if not line:
                         continue
                     d = json.loads(line)
+                    if "error" in d:
+                        self.app.call_from_thread(self.dismiss, False)
+                        return
+                    if d.get("status") == "success":
+                        success_seen = True
                     if d.get("total") and d.get("completed"):
                         self.app.call_from_thread(
                             bar.update, total=d["total"], progress=d["completed"])
-            self.app.call_from_thread(self.dismiss, True)
+            self.app.call_from_thread(self.dismiss, success_seen)
         except requests.RequestException:
             self.app.call_from_thread(self.dismiss, False)

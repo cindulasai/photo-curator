@@ -73,7 +73,10 @@ def openrouter_vision_models(timeout: float = 3.0) -> list[ModelEntry]:
                 return float(x) or None
             except (TypeError, ValueError):
                 return None
-        out.append(ModelEntry(id=f"openrouter/{m['id']}", provider="openrouter",
+        mid = m.get("id")
+        if not mid:
+            continue
+        out.append(ModelEntry(id=f"openrouter/{mid}", provider="openrouter",
                               source="openrouter", local=False,
                               input_cost=_f(pr.get("prompt")),
                               output_cost=_f(pr.get("completion"))))

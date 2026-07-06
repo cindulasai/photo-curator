@@ -1,4 +1,5 @@
 import json, time
+from unittest.mock import patch
 from curator.config import load_config
 from curator.db import Store
 from curator.model import MockModel
@@ -67,3 +68,50 @@ def test_factory_for_cloud_builds_litellm(tmp_path):
     ks = KeyStore(home=tmp_path, backend="file")
     m = factory_for(cloud, ks)(load_config(None))
     assert isinstance(m, LiteLLMModel)
+
+
+def test_stop_cancels_cleanly(tmp_path):
+    """stop() sets _cancel; _SteerProxy raises KeyboardInterrupt; thread exits cleanly."""
+    src = tmp_path / "src"
+    src.mkdir()
+    out = tmp_path / "out"
+
+    def mock_pipeline(args, model_factory=None, steer=None, notify=None):
+        cfg = load_config(None)
+        while True:
+            steer(cfg, 0)   # raises KeyboardInterrupt when stop() is called
+        return 0
+
+    r = PipelineRunner(source=src, out=out, model_entry=LOCAL, keystore=None,
+                       cfg_deltas=[], model_factory=lambda cfg: MockModel(_handler))
+
+    import curator.tui.runner as runner_mod
+    with patch.object(runner_mod, "run_pipeline", mock_pipeline):
+        r.start()
+        time.sleep(0.05)    # let worker start spinning
+        r.stop()
+        _wait(r, timeout=5)
+
+    assert r.state.done is True
+
+
+def test_pipeline_error_sets_state(tmp_path):
+    """When run_pipeline raises, state.error is set and state.done is True."""
+    src = tmp_path / "src"
+    src.mkdir()
+    out = tmp_path / "out"
+
+    def mock_pipeline(args, model_factory=None, steer=None, notify=None):
+        raise RuntimeError("boom")
+
+    r = PipelineRunner(source=src, out=out, model_entry=LOCAL, keystore=None,
+                       cfg_deltas=[], model_factory=lambda cfg: MockModel(_handler))
+
+    import curator.tui.runner as runner_mod
+    with patch.object(runner_mod, "run_pipeline", mock_pipeline):
+        r.start()
+        _wait(r, timeout=5)
+
+    assert r.state.done is True
+    assert r.state.error is not None
+    assert "boom" in r.state.error

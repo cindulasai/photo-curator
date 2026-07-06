@@ -33,18 +33,23 @@ class IntentScreen(Screen):
         self.run_worker(lambda: self._parse(text), thread=True)
 
     def _parse(self, text: str) -> None:
-        factory = self.app.model_factory
-        if factory is None:
-            from .runner import factory_for
-            factory = factory_for(self.app.state.model_entry, self.app.state.keystore)
-        model = factory(self.app.state.cfg)
-        out = parse_intent(model, self.app.state.cfg, text)
-        self._pending = out["deltas"]
-        lines = describe(out["deltas"]) or ["(no changes)"]
-        self.app.call_from_thread(
-            self.query_one("#parsed", Static).update,
-            out["reply"] + "\n" + "\n".join(f"  {ln}" for ln in lines)
-            + "\n\nPress [a] to accept, or type again.")
+        try:
+            factory = self.app.model_factory
+            if factory is None:
+                from .runner import factory_for
+                factory = factory_for(self.app.state.model_entry, self.app.state.keystore)
+            model = factory(self.app.state.cfg)
+            out = parse_intent(model, self.app.state.cfg, text)
+            self._pending = out["deltas"]
+            lines = describe(out["deltas"]) or ["(no changes)"]
+            self.app.call_from_thread(
+                self.query_one("#parsed", Static).update,
+                out["reply"] + "\n" + "\n".join(f"  {ln}" for ln in lines)
+                + "\n\nPress [a] to accept, or type again.")
+        except Exception as e:
+            self.app.call_from_thread(
+                self.query_one("#parsed", Static).update,
+                f"curator: something went wrong — {e}")
 
     def action_accept(self) -> None:
         if self._pending:
