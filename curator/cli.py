@@ -185,6 +185,9 @@ def main(argv=None) -> int:
     q = sub.add_parser("qualify", help="test a model against the calibration set")
     q.add_argument("--config"); q.add_argument("--model")
     q.add_argument("--force", action="store_true")
+    rev = sub.add_parser("review", help="open the review gallery in your browser")
+    rev.add_argument("dir", help="curated output directory to review")
+    rev.set_defaults(cmd="review")
     args = ap.parse_args(argv)
 
     if args.cmd == "qualify":
@@ -198,6 +201,23 @@ def main(argv=None) -> int:
                   f"expected {r_['expect']}, got {r_['got']}")
         print("QUALIFIED" if passed else f"REFUSED - alternatives: {ALTERNATIVES}")
         return 0 if passed else 2
+    if args.cmd == "review":
+        from .review.server import ReviewServer, find_free_port, make_token
+        port = find_free_port()
+        token = make_token()
+        out_dir = Path(args.dir).resolve()
+        if not (out_dir / "curation.db").exists():
+            print(f"Not a curated directory (no curation.db): {out_dir}", file=sys.stderr)
+            return 1
+        srv = ReviewServer(out_dir, port, token)
+        srv.start(open_browser=True)
+        print(f"Review gallery: {srv.url}")
+        print("Press Ctrl-C to stop.")
+        try:
+            srv._thread.join()
+        except KeyboardInterrupt:
+            srv.stop()
+        return 0
     return run_pipeline(args)
 
 
