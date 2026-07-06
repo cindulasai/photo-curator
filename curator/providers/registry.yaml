@@ -1,0 +1,27 @@
+# curator/providers/registry.yaml
+# Models verified against the 10-image qualification gate. Order = display order.
+recommended:
+  - id: ollama/qwen2.5vl:7b
+    note: best local all-rounder (default)
+    verified: 2026-07-05
+  - id: ollama/gemma3:12b
+    note: strong local, ~12 GB RAM
+    verified: 2026-07-05
+  - id: ollama/gemma3:4b
+    note: low-RAM local option
+    verified: 2026-07-05
+  - id: ollama/llama3.2-vision:11b
+    note: solid local alternative
+    verified: 2026-07-05
+  - id: ollama/minicpm-v:8b
+    note: fast local option
+    verified: 2026-07-05
+  - id: gpt-4o-mini
+    note: cheapest strong API pick
+    verified: 2026-07-05
+  - id: gpt-4o
+    note: highest-quality API pick
+    verified: 2026-07-05
+  - id: gemini/gemini-2.0-flash
+    note: cheapest strong API (Google)
+    verified: 2026-07-05

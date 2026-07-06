@@ -22,7 +22,8 @@ def _needs_second_pass(flags: list[str], p1: dict) -> bool:
 
 
 def run_stage3(source: Path, store: Store, cfg: dict, model,
-               progress: Callable[[str], None] = lambda s: None) -> dict:
+               progress: Callable[[str], None] = lambda s: None,
+               steer: Callable[[dict, int], dict | None] | None = None) -> dict:
     run_tournaments(source, store, cfg, model)
     summary = {"analyzed": 0, "second_passes": 0, "invalid": 0}
     skip = set()
@@ -40,6 +41,12 @@ def run_stage3(source: Path, store: Store, cfg: dict, model,
     r_prompt = prompts.render("analyze_photo_reworded", cfg)
     a_schema, r_schema = prompts.load_schema("analyze"), prompts.load_schema("reworded")
     for i, photo in enumerate(todo, 1):
+        if steer is not None:
+            new_cfg = steer(cfg, i - 1)
+            if new_cfg is not None:                      # boundary-applied delta (R5)
+                cfg = new_cfg
+                a_prompt = prompts.render("analyze_photo", cfg)
+                r_prompt = prompts.render("analyze_photo_reworded", cfg)
         rel = photo["rel_path"]
         img = [Path(photo["stage2"]["work_path"])]
         try:

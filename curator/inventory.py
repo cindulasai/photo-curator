@@ -1,5 +1,5 @@
 from __future__ import annotations
-import hashlib
+import fnmatch, hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 from PIL import Image
@@ -84,6 +84,11 @@ def run_stage1(source: Path, store: Store, cfg: dict) -> dict:
             if existing["kind"] == "photo" and existing["status"] in ("ok", "excluded"):
                 sha_map.setdefault(existing["sha256"], []).append(rel)
             continue                                  # resume: already inventoried
+        if any(fnmatch.fnmatch(rel, g) for g in cfg.get("skip_globs", [])):
+            store.upsert_photo(rel, kind="photo", status="skipped", stage_done=1,
+                               size=p.stat().st_size, mtime=p.stat().st_mtime)
+            counts["skipped"] += 1
+            continue
         st = p.stat()
         ext = p.suffix.lower()
         base = dict(size=st.st_size, mtime=st.st_mtime)

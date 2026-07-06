@@ -2,6 +2,7 @@ from __future__ import annotations
 import argparse, shutil, sys, time
 from datetime import datetime, timezone
 from pathlib import Path
+from . import __version__
 from .config import config_hash, load_config
 from .db import Store
 from .inventory import run_stage1, source_tree_hash
@@ -30,7 +31,8 @@ def _default_out(source: Path, store: Store) -> Path:
     return source.parent / "curated-run"
 
 
-def run_pipeline(args, model_factory=_default_factory) -> int:
+def run_pipeline(args, model_factory=_default_factory, steer=None, notify=None) -> int:
+    say = notify or print
     cfg = load_config(Path(args.config) if args.config else None)
     if args.model:
         cfg["model"] = args.model
@@ -66,23 +68,28 @@ def run_pipeline(args, model_factory=_default_factory) -> int:
     store.set_meta("config_hash", chash)
     store.set_meta("source_hash", shash)
 
+    if steer is not None and hasattr(steer, "attach_store"):
+        steer.attach_store(store)
+        if args.resume:
+            cfg = steer.load_applied(cfg)
+
     timings = {}
     t0 = time.time()
     s1 = run_stage1(source, store, cfg)
     timings["stage1_s"] = time.time() - t0
-    print(f"[stage 1/5] {s1['photos']} photos, {s1['skipped']} skipped, "
-          f"{s1['corrupt']} corrupt, {s1['exact_dupes']} exact dupes")
+    say(f"[stage 1/5] {s1['photos']} photos, {s1['skipped']} skipped, "
+        f"{s1['corrupt']} corrupt, {s1['exact_dupes']} exact dupes")
 
     t0 = time.time()
     s2 = run_stage2(source, store, cfg, out / ".work")
     timings["stage2_s"] = time.time() - t0
     survivors = sum(1 for p in store.photos(status="ok") if p["stage_done"] >= 2)
-    print(f"[stage 2/5] {s2['auto_rejected']} auto-rejected, {s2['groups']} groups, "
-          f"{survivors} survivors")
+    say(f"[stage 2/5] {s2['auto_rejected']} auto-rejected, {s2['groups']} groups, "
+        f"{survivors} survivors")
 
     if args.dry_run:
-        print(f"dry-run: {survivors} survivors of {s1['photos']} photos would reach "
-              f"the LLM - est {survivors * 8 / 3600:.1f}h at 8 s/photo")
+        say(f"dry-run: {survivors} survivors of {s1['photos']} photos would reach "
+            f"the LLM - est {survivors * 8 / 3600:.1f}h at 8 s/photo")
         store.close()
         return 0
 
@@ -113,11 +120,11 @@ def run_pipeline(args, model_factory=_default_factory) -> int:
             i, total = msg.split("/")
             rate = (time.time() - done["t0"]) / done["n"]
             eta = (int(total) - int(i)) * rate
-            print(f"[stage 3/5] {msg} analyzed - ETA {eta / 60:.0f}m")
+            say(f"[stage 3/5] {msg} analyzed - ETA {eta / 60:.0f}m")
 
     t0 = time.time()
     try:
-        run_stage3(source, store, cfg, model, progress)
+        run_stage3(source, store, cfg, model, progress, steer=steer)
     except ModelError as exc:
         print(f"Run interrupted - {exc}\nResume with: photo-curator run {source} "
               f"--out {out} --resume", file=sys.stderr)
@@ -132,7 +139,7 @@ def run_pipeline(args, model_factory=_default_factory) -> int:
               f"{source} --out {out} --resume", file=sys.stderr)
         return 4
     timings["stage4_s"] = time.time() - t0
-    print(f"[stage 4/5] {s4['top_picks']} top picks across {s4['events']} events")
+    say(f"[stage 4/5] {s4['top_picks']} top picks across {s4['events']} events")
 
     need = required_bytes(store)
     free = shutil.disk_usage(out).free
@@ -147,14 +154,26 @@ def run_pipeline(args, model_factory=_default_factory) -> int:
     write_manifest(store, cfg, out, model.name(), timings, shash)
 
     reviews = len(store.photos(verdict="needs-review"))
-    print(f"[stage 5/5] done -> {out}\n{reviews} photos need your eyes - "
-          f"see {out / 'REPORT.md'}")
+    say(f"[stage 5/5] done -> {out}\n{reviews} photos need your eyes - "
+        f"see {out / 'REPORT.md'}")
     store.close()
     return 0
 
 
 def main(argv=None) -> int:
+    argv = list(sys.argv[1:]) if argv is None else list(argv)
+    if argv in ([], ["tui"]):
+        try:
+            from curator.tui.app import CuratorApp
+        except ModuleNotFoundError:
+            print("The interactive app needs extras. Install with:\n"
+                  "  pip install 'photo-curator[app]'", file=sys.stderr)
+            return 1
+        CuratorApp().run()
+        return 0
     ap = argparse.ArgumentParser(prog="photo-curator")
+    ap.add_argument("--version", action="version",
+                    version=f"photo-curator {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run", help="curate a folder of photos")
     r.add_argument("source")

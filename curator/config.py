@@ -46,6 +46,8 @@ DEFAULTS = {
     "tournament": {"classical_agree_ratio": 0.7},
     "events": {"gap_hours": 6.0, "gps_jump_km": 50.0},
     "fast": {"enabled": False},
+    "prompt_suffix": [],   # plain-English user preferences, appended to analysis prompts
+    "skip_globs": [],      # rel-path globs excluded at inventory
 }
 
 

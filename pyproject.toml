@@ -12,7 +12,8 @@ dependencies = [
 photo-curator = "curator.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "textual>=0.60", "keyring>=24"]
+app = ["textual>=0.60", "litellm>=1.40", "keyring>=24"]
 
 [build-system]
 requires = ["hatchling"]
@@ -25,3 +26,7 @@ packages = ["curator"]
 "curator/data" = "curator/data"
 "curator/prompts" = "curator/prompts"
 "curator/schemas" = "curator/schemas"
+"curator/providers/registry.yaml" = "curator/providers/registry.yaml"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

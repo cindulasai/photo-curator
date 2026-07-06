@@ -37,24 +37,22 @@ When it's confident, it acts. When it's not sure, it sets the photo aside for yo
 
 ## Quick start
 
-You'll need [Python 3.11+](https://python.org) and [Ollama](https://ollama.com) installed.
+You'll need [Python 3.11+](https://python.org) installed.
 
-```bash
-# Install
-pip install -e ".[dev]"
+**Easiest:** download one file from [Releases](https://github.com/cindulasai/photo-curator/releases)
+and run it — the app walks you through everything.
 
-# Pull the vision model (free, runs locally)
-ollama pull qwen2.5vl:7b
+    # macOS / Linux
+    curl -fsSL https://raw.githubusercontent.com/cindulasai/photo-curator/main/scripts/install.sh | sh
+    photo-curator
 
-# Check the model is good enough
-photo-curator qualify
+    # Windows (PowerShell)
+    irm https://raw.githubusercontent.com/cindulasai/photo-curator/main/scripts/install.ps1 | iex
 
-# Preview what it would do — no changes made
-photo-curator run ~/Pictures --dry-run
+**Python users:**
 
-# Run it
-photo-curator run ~/Pictures
-```
+    pip install -e ".[app]"
+    photo-curator            # opens the app; CLI subcommands still work
 
 After it runs, you'll find a new folder next to your photos with everything neatly organized, a visual report showing what it did and why, and a small "needs-review" pile for anything it wasn't sure about.
 
@@ -98,7 +96,7 @@ No model or photos needed — the full test suite runs on synthetic images:
 python -m pytest
 ```
 
-63 tests. All pass.
+121 tests. All pass.
 
 ---
 
