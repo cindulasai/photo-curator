@@ -101,44 +101,41 @@ def test_budget_exhausted_no_critique(tmp_path, img_factory):
 
 
 def test_highlights_weak_triggers_reconsider(tmp_path, img_factory):
-    """A weak-scored top-pick triggers the evaluator when budget allows."""
+    """A weak-scored top-pick is swapped with the best excluded candidate."""
     src = tmp_path / "src"
-    img_factory(src / "p0.jpg", "scene", seed=0, exif_dt="2026:05:12 10:00:00")
-    img_factory(src / "p1.jpg", "scene", seed=1, exif_dt="2026:05:12 10:01:00")
+    for i in range(4):
+        img_factory(src / f"p{i}.jpg", "scene", seed=i,
+                    exif_dt=f"2026:05:12 10:0{i}:00")
 
     from curator.db import Store
     from curator.stage4 import run_stage4
     from curator.budget import LLMBudgetCounter
+    from curator.config import load_config
 
     store = Store(tmp_path / "c.db")
     cfg = load_config(None)
+    cfg["top_picks"]["target"] = 2  # only 2 selected, leaving 2 as swap candidates
 
     rubric = {"emotional": 3, "people_engagement": 3, "composition_light": 3,
               "scene_appeal": 3, "novelty": 3}
-    vi0 = {"bucket": "people", "tier": "medium", "evidence": [], "tags": [],
-            "description": "", "rubric": rubric, "people": None}
-    vi1 = {"bucket": "people", "tier": "medium", "evidence": [], "tags": [],
-            "description": "", "rubric": rubric, "people": None}
 
-    store.upsert_photo("p0.jpg", kind="photo", status="ok", stage_done=3,
-                       sha256="aaa", size=100, ts=1000.0, ts_source="exif",
-                       verdict="keep", verdict_info=vi0,
-                       stage2={"phash": 0, "flags": [], "work_path": str(src / "p0.jpg"),
-                               "lap_var_global": 80.0, "lap_var_center": 80.0})
-    store.upsert_photo("p1.jpg", kind="photo", status="ok", stage_done=3,
-                       sha256="bbb", size=100, ts=1060.0, ts_source="exif",
-                       verdict="keep", verdict_info=vi1,
-                       stage2={"phash": 4, "flags": [], "work_path": str(src / "p1.jpg"),
-                               "lap_var_global": 80.0, "lap_var_center": 80.0})
+    for i in range(4):
+        vi = {"bucket": "people", "tier": "medium", "evidence": [], "tags": [],
+              "description": "", "rubric": rubric, "people": None}
+        store.upsert_photo(f"p{i}.jpg", kind="photo", status="ok", stage_done=3,
+                           sha256=f"sha{i}", size=100, ts=1000.0 + i * 60,
+                           ts_source="exif", verdict="keep", verdict_info=vi,
+                           stage2={"phash": i, "flags": [],
+                                   "work_path": str(src / f"p{i}.jpg"),
+                                   "lap_var_global": 80.0 + i,
+                                   "lap_var_center": 80.0 + i})
 
     eval_calls = []
 
     def handler(paths, prompt, schema):
         if "flags" in str(schema):
-            # final_verification schema → pass all
             return {"flags": []}
         if "verdict" in str(schema) and "strong" in str(schema):
-            # highlights_eval schema
             eval_calls.append(1)
             return {"emotional": 0, "people_engagement": 0, "event_significance": 0,
                     "composition_light": 0, "uniqueness": 0, "scene_appeal": 0,
@@ -148,6 +145,9 @@ def test_highlights_weak_triggers_reconsider(tmp_path, img_factory):
     budget = LLMBudgetCounter(base_count=20, cap_fraction=0.15)
     run_stage4(src, store, cfg, MockModel(handler), budget=budget)
     assert len(eval_calls) >= 1  # evaluator fired
+    # After swapping, top-picks should still equal target (2)
+    top_picks = store.photos(verdict="top-pick")
+    assert len(top_picks) == 2  # swap happened: weak picks replaced, count preserved
 
 
 def test_highlights_no_reconsider_without_budget(tmp_path, img_factory):

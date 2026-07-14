@@ -141,9 +141,10 @@ def run_stage4(source: Path, store: Store, cfg: dict, model, budget=None) -> dic
             except Exception:
                 pass
         if weak_picks:
+            picked_rels = {v["rel_path"] for v in verified}
             excluded_sorted = sorted(
-                [c for c in cands if c["rel_path"] in excluded],
-                key=lambda c: -c["composite"])
+                [c for c in cands if c["rel_path"] not in picked_rels],
+                key=lambda c: (-c["composite"], c["rel_path"]))
             for weak in weak_picks:
                 if not excluded_sorted or not budget.charge():
                     break
