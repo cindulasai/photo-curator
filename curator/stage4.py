@@ -42,7 +42,7 @@ def _select(cands: list[dict], cfg: dict, target: int, excluded: set) -> list[di
     return picked
 
 
-def run_stage4(source: Path, store: Store, cfg: dict, model) -> dict:
+def run_stage4(source: Path, store: Store, cfg: dict, model, budget=None) -> dict:
     resolve_all(store, cfg)
     keeps = store.photos(verdict="keep")
 
@@ -125,6 +125,31 @@ def run_stage4(source: Path, store: Store, cfg: dict, model) -> dict:
         verified.extend(ok_this_round)
         if len(verified) >= target:
             break
+
+    # Confidence-gated highlights critique: one evaluator pass, bottom-decile reconsider
+    if budget is not None and verified:
+        eval_schema = prompts.load_schema("highlights_eval")
+        eval_prompt = prompts.render("highlights_eval", cfg)
+        weak_picks = []
+        for v in list(verified):
+            if not budget.charge():
+                break
+            try:
+                ev = model.analyze([Path(v["work_path"])], eval_prompt, eval_schema)
+                if ev.get("verdict") in ("weak", "remove"):
+                    weak_picks.append(v)
+            except Exception:
+                pass
+        if weak_picks:
+            excluded_sorted = sorted(
+                [c for c in cands if c["rel_path"] in excluded],
+                key=lambda c: -c["composite"])
+            for weak in weak_picks:
+                if not excluded_sorted or not budget.charge():
+                    break
+                challenger = excluded_sorted.pop(0)
+                verified = [challenger if v["rel_path"] == weak["rel_path"] else v
+                            for v in verified]
 
     for v in verified:
         vi = v["vi"]

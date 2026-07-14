@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "properties": {
+    "emotional": {"type": "integer", "minimum": 0, "maximum": 4},
+    "people_engagement": {"type": "integer", "minimum": 0, "maximum": 4},
+    "event_significance": {"type": "integer", "minimum": 0, "maximum": 4},
+    "composition_light": {"type": "integer", "minimum": 0, "maximum": 4},
+    "uniqueness": {"type": "integer", "minimum": 0, "maximum": 4},
+    "scene_appeal": {"type": "integer", "minimum": 0, "maximum": 4},
+    "verdict": {"type": "string", "enum": ["strong", "weak", "remove"]}
+  },
+  "required": ["emotional", "people_engagement", "event_significance",
+               "composition_light", "uniqueness", "scene_appeal", "verdict"],
+  "additionalProperties": false
+}

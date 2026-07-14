@@ -100,6 +100,100 @@ def test_budget_exhausted_no_critique(tmp_path, img_factory):
     assert len(calls) == 1  # only the base tournament call, no critique
 
 
+def test_highlights_weak_triggers_reconsider(tmp_path, img_factory):
+    """A weak-scored top-pick triggers the evaluator when budget allows."""
+    src = tmp_path / "src"
+    img_factory(src / "p0.jpg", "scene", seed=0, exif_dt="2026:05:12 10:00:00")
+    img_factory(src / "p1.jpg", "scene", seed=1, exif_dt="2026:05:12 10:01:00")
+
+    from curator.db import Store
+    from curator.stage4 import run_stage4
+    from curator.budget import LLMBudgetCounter
+
+    store = Store(tmp_path / "c.db")
+    cfg = load_config(None)
+
+    rubric = {"emotional": 3, "people_engagement": 3, "composition_light": 3,
+              "scene_appeal": 3, "novelty": 3}
+    vi0 = {"bucket": "people", "tier": "medium", "evidence": [], "tags": [],
+            "description": "", "rubric": rubric, "people": None}
+    vi1 = {"bucket": "people", "tier": "medium", "evidence": [], "tags": [],
+            "description": "", "rubric": rubric, "people": None}
+
+    store.upsert_photo("p0.jpg", kind="photo", status="ok", stage_done=3,
+                       sha256="aaa", size=100, ts=1000.0, ts_source="exif",
+                       verdict="keep", verdict_info=vi0,
+                       stage2={"phash": 0, "flags": [], "work_path": str(src / "p0.jpg"),
+                               "lap_var_global": 80.0, "lap_var_center": 80.0})
+    store.upsert_photo("p1.jpg", kind="photo", status="ok", stage_done=3,
+                       sha256="bbb", size=100, ts=1060.0, ts_source="exif",
+                       verdict="keep", verdict_info=vi1,
+                       stage2={"phash": 4, "flags": [], "work_path": str(src / "p1.jpg"),
+                               "lap_var_global": 80.0, "lap_var_center": 80.0})
+
+    eval_calls = []
+
+    def handler(paths, prompt, schema):
+        if "flags" in str(schema):
+            # final_verification schema → pass all
+            return {"flags": []}
+        if "verdict" in str(schema) and "strong" in str(schema):
+            # highlights_eval schema
+            eval_calls.append(1)
+            return {"emotional": 0, "people_engagement": 0, "event_significance": 0,
+                    "composition_light": 0, "uniqueness": 0, "scene_appeal": 0,
+                    "verdict": "weak"}
+        return {"flags": []}
+
+    budget = LLMBudgetCounter(base_count=20, cap_fraction=0.15)
+    run_stage4(src, store, cfg, MockModel(handler), budget=budget)
+    assert len(eval_calls) >= 1  # evaluator fired
+
+
+def test_highlights_no_reconsider_without_budget(tmp_path, img_factory):
+    """With zero budget, no evaluator calls are made."""
+    src = tmp_path / "src"
+    img_factory(src / "p0.jpg", "scene", seed=0, exif_dt="2026:05:12 10:00:00")
+    img_factory(src / "p1.jpg", "scene", seed=1, exif_dt="2026:05:12 10:01:00")
+
+    from curator.db import Store
+    from curator.stage4 import run_stage4
+    from curator.budget import LLMBudgetCounter
+
+    store = Store(tmp_path / "c.db")
+    cfg = load_config(None)
+
+    rubric = {"emotional": 3, "people_engagement": 3, "composition_light": 3,
+              "scene_appeal": 3, "novelty": 3}
+    vi = {"bucket": "people", "tier": "medium", "evidence": [], "tags": [],
+          "description": "", "rubric": rubric, "people": None}
+
+    store.upsert_photo("p0.jpg", kind="photo", status="ok", stage_done=3,
+                       sha256="aaa", size=100, ts=1000.0, ts_source="exif",
+                       verdict="keep", verdict_info=vi,
+                       stage2={"phash": 0, "flags": [], "work_path": str(src / "p0.jpg"),
+                               "lap_var_global": 80.0, "lap_var_center": 80.0})
+    store.upsert_photo("p1.jpg", kind="photo", status="ok", stage_done=3,
+                       sha256="bbb", size=100, ts=1060.0, ts_source="exif",
+                       verdict="keep", verdict_info=dict(vi),
+                       stage2={"phash": 4, "flags": [], "work_path": str(src / "p1.jpg"),
+                               "lap_var_global": 80.0, "lap_var_center": 80.0})
+
+    eval_calls = []
+
+    def handler(paths, prompt, schema):
+        if "verdict" in str(schema) and "strong" in str(schema):
+            eval_calls.append(1)
+            return {"emotional": 1, "people_engagement": 1, "event_significance": 1,
+                    "composition_light": 1, "uniqueness": 1, "scene_appeal": 1,
+                    "verdict": "weak"}
+        return {"flags": []}
+
+    budget = LLMBudgetCounter(base_count=0)
+    run_stage4(src, store, cfg, MockModel(handler), budget=budget)
+    assert len(eval_calls) == 0  # no budget → no eval
+
+
 def test_critique_runner_up_selection_n3(tmp_path, img_factory):
     """With 3 photos, runner-up is the highest-sharpness non-champion, not just the finalist."""
     src = tmp_path / "src"
