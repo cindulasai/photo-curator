@@ -27,6 +27,19 @@ It runs entirely on your computer. Your photos never leave your machine.
 
 ---
 
+## Review your results in the browser
+
+After a run, press **R** in the results screen (or run `photo-curator review <output-folder>`) to open a visual gallery in your browser.
+
+- Flip through photos with arrow keys
+- Press **G** to promote a photo to your highlights, **X** to reject, **U** to undo
+- The **Needs Review** pile is presented one-by-one — keep, reject, or re-sort each photo in seconds
+- Ask questions in the chat panel: "Why was IMG_2041 rejected?" gets a plain-English answer from the curation log
+
+The app learns from your corrections. After each review session, it notices patterns (like "you keep rescuing slightly soft photos of kids") and asks if you'd like it to remember that preference for next time.
+
+---
+
 ## How it works (the short version)
 
 It uses two things together: classic image analysis (checking sharpness, brightness, and whether photos look identical) plus a local AI vision model that actually *looks* at your photos and understands what's in them — just like you would.
