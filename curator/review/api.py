@@ -20,9 +20,10 @@ _BUCKET_LABELS = {
 
 
 class ApiHandler:
-    def __init__(self, out_dir: Path, token: str):
+    def __init__(self, out_dir: Path, token: str, model_factory=None):
         self._out = Path(out_dir)
         self._token = token
+        self._model_factory = model_factory
         self._undo_stack: list[dict] = []  # [{photo, from_verdict, from_vi}]
 
     def _store(self) -> Store:
@@ -158,12 +159,16 @@ class ApiHandler:
         message = body.get("message", "").strip()
         if not message:
             return {"reply": ""}
+        if self._model_factory is None:
+            return {"reply": "Chat requires a configured model. Start the review from inside the app to enable chat."}
         try:
             from ..chat.qa import answer
             from ..config import load_config
+            model = self._model_factory()
+            cfg = load_config(None)
             store = self._store()
             try:
-                reply = answer(None, store, load_config(None), message)
+                reply = answer(model, store, cfg, message)
             finally:
                 store.close()
             return {"reply": reply}

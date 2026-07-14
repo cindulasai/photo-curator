@@ -34,6 +34,8 @@ def _default_out(source: Path, store: Store) -> Path:
 def run_pipeline(args, model_factory=_default_factory, steer=None, notify=None) -> int:
     say = notify or print
     cfg = load_config(Path(args.config) if args.config else None)
+    from .chat.memory import inject_memory as _inject_memory
+    cfg = _inject_memory(cfg)
     if args.model:
         cfg["model"] = args.model
     source = Path(args.source).resolve()
@@ -123,8 +125,11 @@ def run_pipeline(args, model_factory=_default_factory, steer=None, notify=None) 
             say(f"[stage 3/5] {msg} analyzed - ETA {eta / 60:.0f}m")
 
     t0 = time.time()
+    from .budget import LLMBudgetCounter
+    _ok_count = len(store.photos(status="ok"))
+    _budget = LLMBudgetCounter(_ok_count)
     try:
-        run_stage3(source, store, cfg, model, progress, steer=steer)
+        run_stage3(source, store, cfg, model, progress, steer=steer, budget=_budget)
     except ModelError as exc:
         print(f"Run interrupted - {exc}\nResume with: photo-curator run {source} "
               f"--out {out} --resume", file=sys.stderr)
@@ -133,7 +138,7 @@ def run_pipeline(args, model_factory=_default_factory, steer=None, notify=None) 
 
     t0 = time.time()
     try:
-        s4 = run_stage4(source, store, cfg, model)
+        s4 = run_stage4(source, store, cfg, model, budget=_budget)
     except ModelError as exc:
         print(f"Run interrupted in ranking - {exc}\nResume with: photo-curator run "
               f"{source} --out {out} --resume", file=sys.stderr)

@@ -23,8 +23,9 @@ def _needs_second_pass(flags: list[str], p1: dict) -> bool:
 
 def run_stage3(source: Path, store: Store, cfg: dict, model,
                progress: Callable[[str], None] = lambda s: None,
-               steer: Callable[[dict, int], dict | None] | None = None) -> dict:
-    run_tournaments(source, store, cfg, model)
+               steer: Callable[[dict, int], dict | None] | None = None,
+               budget=None) -> dict:
+    run_tournaments(source, store, cfg, model, budget=budget)
     summary = {"analyzed": 0, "second_passes": 0, "invalid": 0}
     skip = set()
     for g in store.groups():

@@ -141,7 +141,10 @@ class ResultsScreen(Screen):
             return
         port = find_free_port()
         token = make_token()
-        srv = ReviewServer(self.runner.out, port, token)
+        _factory = self.app.model_factory
+        _cfg = self.app.state.cfg if self.app.state else {}
+        model_factory = (lambda: _factory(_cfg)) if _factory else None
+        srv = ReviewServer(self.runner.out, port, token, model_factory=model_factory)
         srv.start(open_browser=True)
         self.notify(f"Review gallery: {srv.url}")
         self.run_worker(lambda: self._memory_session(srv), thread=True)

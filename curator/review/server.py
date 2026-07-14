@@ -21,6 +21,7 @@ class _Handler(SimpleHTTPRequestHandler):
     _token: str
     _out_dir: Path
     _api_handler = None  # set after import to avoid circular
+    _model_factory: object = None
 
     def log_message(self, *_):  # silence access log
         pass
@@ -31,11 +32,10 @@ class _Handler(SimpleHTTPRequestHandler):
         return self._token in (qs.get("token", [""])[0], cookie)
 
     def do_GET(self):
+        if not self._check_token():
+            self.send_error(403, "Missing or invalid token")
+            return
         path = urlparse(self.path).path
-        if path.startswith("/api/") or path == "/":
-            if not self._check_token():
-                self.send_error(403, "Missing or invalid token")
-                return
         if path.startswith("/api/"):
             if self._api_handler:
                 self._api_handler.handle_get(self, path)
@@ -70,10 +70,11 @@ class _Handler(SimpleHTTPRequestHandler):
 
 
 class ReviewServer:
-    def __init__(self, out_dir: Path, port: int, token: str):
+    def __init__(self, out_dir: Path, port: int, token: str, model_factory=None):
         self.out_dir = Path(out_dir)
         self.port = port
         self.token = token
+        self._model_factory = model_factory
         self._thread: threading.Thread | None = None
         self._httpd: ThreadingHTTPServer | None = None
 
@@ -83,14 +84,16 @@ class ReviewServer:
 
     def start(self, open_browser: bool = True) -> None:
         token, out_dir = self.token, self.out_dir
+        model_factory = self._model_factory
 
         class H(_Handler):
             _token = token
             _out_dir = out_dir
+            _model_factory = model_factory
 
         try:
             from .api import ApiHandler
-            H._api_handler = ApiHandler(out_dir, token)
+            H._api_handler = ApiHandler(out_dir, token, model_factory=model_factory)
         except Exception:
             pass
 
